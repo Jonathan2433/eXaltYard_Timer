@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0b1220" />
+    <title>eXaltYard Timer</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <section id="main-screen" class="screen" aria-labelledby="app-title">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">COURSE À BOUCLES · DIRECTION DE COURSE</p>
+            <h1 id="app-title" class="event-wordmark"><span>e<span class="wordmark-x">X</span>alt</span><strong>YARD</strong></h1>
+          </div>
+          <div class="topbar-actions">
+            <span id="race-status" class="status status-idle" role="status">PRÊT</span>
+            <button class="button button-quiet" type="button" data-action="fullscreen" aria-label="Activer le plein écran">⛶ Plein écran</button>
+          </div>
+        </header>
+
+        <div id="race-board" class="race-board state-idle">
+          <div id="loop-label" class="loop-label" aria-label="Boucle 1 sur 25">
+            <span class="loop-kicker">BOUCLE</span>
+            <span class="loop-count"><strong id="loop-current">01</strong><span aria-hidden="true">/</span><strong id="loop-total">25</strong></span>
+          </div>
+          <div id="timer" class="timer" aria-label="Temps restant">10:00</div>
+          <p id="timer-caption" class="timer-caption">TEMPS RESTANT</p>
+          <div class="time-details" aria-label="Détails de la boucle">
+            <div class="time-detail">
+              <span>TEMPS LIMITE</span>
+              <strong id="current-limit">10:00</strong>
+            </div>
+            <div class="time-detail">
+              <span>PROCHAINE BOUCLE</span>
+              <strong id="next-limit">10:00</strong>
+            </div>
+          </div>
+          <p id="completed-summary" class="completed-summary" hidden></p>
+        </div>
+
+        <p id="announcement" class="announcement" role="status" aria-live="polite">Programme prêt. Testez le son avant le départ.</p>
+
+        <nav class="controls" aria-label="Commandes de course">
+          <button id="start-button" class="button button-primary button-wide" type="button" data-action="start">Démarrer la course</button>
+          <button id="pause-button" class="button button-warning" type="button" data-action="pause" hidden>Pause</button>
+          <button id="resume-button" class="button button-primary" type="button" data-action="resume" hidden>Reprendre</button>
+          <button id="previous-button" class="button" type="button" data-action="previous">← Boucle précédente</button>
+          <button id="next-button" class="button" type="button" data-action="next">Boucle suivante →</button>
+          <button class="button" type="button" data-action="test-sound">Tester le son</button>
+          <button id="sound-button" class="button button-quiet" type="button" data-action="toggle-sound">Son : activé</button>
+          <button class="button button-quiet" type="button" data-action="config">Configuration</button>
+          <button class="button button-danger-quiet" type="button" data-action="reset">Reset</button>
+        </nav>
+
+        <section class="timeline-panel" aria-labelledby="timeline-title">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">SUIVI</p>
+              <h2 id="timeline-title">Timeline de la course</h2>
+            </div>
+            <p id="timeline-note" class="muted">Les horaires apparaissent au départ.</p>
+          </div>
+          <div class="table-wrap">
+            <table class="timeline-table">
+              <thead><tr><th>Boucle</th><th>Départ théorique</th><th>Fin théorique</th><th>État</th></tr></thead>
+              <tbody id="timeline-body"></tbody>
+            </table>
+          </div>
+        </section>
+      </section>
+
+      <section id="config-screen" class="screen" hidden aria-labelledby="config-title">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">PRÉPARATION</p>
+            <h1 id="config-title">Configuration du programme</h1>
+          </div>
+          <span id="config-race-note" class="status status-idle">PROGRAMME</span>
+        </header>
+
+        <p id="config-message" class="config-message">Les durées sont exprimées en minutes et secondes.</p>
+        <div class="table-wrap config-table-wrap">
+          <table class="program-table">
+            <thead><tr><th>Boucle</th><th>Temps maximum</th><th>Action</th></tr></thead>
+            <tbody id="program-body"></tbody>
+          </table>
+        </div>
+        <div class="config-actions">
+          <button class="button" type="button" data-action="add-loop">+ Ajouter une boucle</button>
+          <button id="remove-loop-button" class="button button-danger-quiet" type="button" data-action="remove-loop">Supprimer la dernière boucle</button>
+          <button class="button button-primary" type="button" data-action="save-program">Enregistrer le programme</button>
+          <button class="button button-quiet" type="button" data-action="back-main">Retour à l’écran principal</button>
+        </div>
+      </section>
+    </main>
+
+    <div id="edit-modal" class="modal" hidden>
+      <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="edit-title">
+        <p class="eyebrow">MODIFICATION DU PROGRAMME</p>
+        <h2 id="edit-title">Modifier la durée</h2>
+        <p id="edit-loop-label" class="modal-description"></p>
+        <label class="field-label" for="duration-input">Nouvelle durée (MM:SS)</label>
+        <input id="duration-input" class="duration-input" inputmode="numeric" autocomplete="off" placeholder="09:30" maxlength="7" />
+        <p id="duration-error" class="form-error" role="alert" hidden></p>
+        <div id="change-preview" class="change-preview" hidden>
+          <span>Ancienne durée <strong id="preview-old"></strong></span>
+          <span>Nouvelle durée <strong id="preview-new"></strong></span>
+          <span>Décalage <strong id="preview-delta"></strong></span>
+          <span>Impact <strong id="preview-impact"></strong></span>
+        </div>
+        <div class="modal-actions">
+          <button class="button button-quiet" type="button" data-action="cancel-edit">Annuler</button>
+          <button class="button button-primary" type="button" data-action="preview-change">Prévisualiser</button>
+          <button id="apply-change-button" class="button button-primary" type="button" data-action="apply-change" hidden>Appliquer à cette boucle et aux suivantes</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="confirm-modal" class="modal" hidden>
+      <div class="modal-card modal-card-small" role="alertdialog" aria-modal="true" aria-labelledby="confirm-title">
+        <p class="eyebrow">CONFIRMATION REQUISE</p>
+        <h2 id="confirm-title">Confirmer l’action</h2>
+        <p id="confirm-text" class="modal-description"></p>
+        <div class="modal-actions">
+          <button class="button button-quiet" type="button" data-action="cancel-confirm">Annuler</button>
+          <button id="confirm-button" class="button button-danger" type="button" data-action="confirm">Confirmer</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+    <script src="app.js"></script>
+  </body>
+</html>
