@@ -3,6 +3,7 @@
 
   const STORAGE_KEY = "exaltyard-timer:v1";
   const MAX_DURATION_SECONDS = 24 * 60 * 60;
+  const DEFAULT_PROGRAM_RULE = Object.freeze({ decrementSeconds: 30, loopsPerStep: 2 });
 
   const DEFAULT_PROGRAM = Array.from({ length: 25 }, (_, index) => ({
     loop: index + 1,
@@ -34,7 +35,17 @@
     timelineNote: document.querySelector("#timeline-note"),
     configRaceNote: document.querySelector("#config-race-note"),
     programBody: document.querySelector("#program-body"),
+    programRuleStatus: document.querySelector("#program-rule-status"),
+    ruleDecrementInput: document.querySelector("#rule-decrement-input"),
+    ruleLoopsInput: document.querySelector("#rule-loops-input"),
+    ruleError: document.querySelector("#program-rule-error"),
+    ruleSummary: document.querySelector("#program-rule-summary"),
+    previewRule: document.querySelector("#preview-rule-button"),
+    cancelRule: document.querySelector("#cancel-rule-button"),
+    applyRule: document.querySelector("#apply-rule-button"),
+    addLoop: document.querySelector("#add-loop-button"),
     removeLoop: document.querySelector("#remove-loop-button"),
+    saveProgram: document.querySelector("#save-program-button"),
     configMessage: document.querySelector("#config-message"),
     editModal: document.querySelector("#edit-modal"),
     editLoopLabel: document.querySelector("#edit-loop-label"),
@@ -57,6 +68,33 @@
     return DEFAULT_PROGRAM.map((entry) => ({ ...entry }));
   }
 
+  function normaliseProgramRule(value) {
+    const decrementSeconds = Number(value && value.decrementSeconds);
+    const loopsPerStep = Number(value && value.loopsPerStep);
+    if (!Number.isInteger(decrementSeconds) || decrementSeconds <= 0 || decrementSeconds > MAX_DURATION_SECONDS) return null;
+    if (!Number.isSafeInteger(loopsPerStep) || loopsPerStep < 1) return null;
+    return { decrementSeconds, loopsPerStep };
+  }
+
+  function durationFromRule(baseDuration, index, rule) {
+    return baseDuration - Math.floor(index / rule.loopsPerStep) * rule.decrementSeconds;
+  }
+
+  function createProgramFromRule(baseDuration, length, rule) {
+    const program = [];
+    for (let index = 0; index < length; index += 1) {
+      const duration = durationFromRule(baseDuration, index, rule);
+      if (duration <= 0) return { invalidIndex: index };
+      program.push({ loop: index + 1, duration });
+    }
+    return { program };
+  }
+
+  function programFollowsRule(program, rule) {
+    if (!program.length) return false;
+    return program.every((entry, index) => entry.duration === durationFromRule(program[0].duration, index, rule));
+  }
+
   function normaliseProgram(value) {
     if (!Array.isArray(value) || value.length === 0) return null;
     const result = [];
@@ -72,12 +110,23 @@
     try {
       const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
       const program = normaliseProgram(saved && saved.program);
+      const selectedProgram = program || cloneDefaultProgram();
+      const programRule = normaliseProgramRule(saved && saved.programRule) || { ...DEFAULT_PROGRAM_RULE };
       return {
-        program: program || cloneDefaultProgram(),
+        program: selectedProgram,
+        programRule,
+        ruleApplied: saved && saved.ruleApplied === false
+          ? false
+          : programFollowsRule(selectedProgram, programRule),
         soundEnabled: saved && typeof saved.soundEnabled === "boolean" ? saved.soundEnabled : true,
       };
     } catch {
-      return { program: cloneDefaultProgram(), soundEnabled: true };
+      return {
+        program: cloneDefaultProgram(),
+        programRule: { ...DEFAULT_PROGRAM_RULE },
+        ruleApplied: true,
+        soundEnabled: true,
+      };
     }
   }
 
@@ -101,6 +150,9 @@
   const stored = loadStoredState();
   const state = {
     program: stored.program,
+    programRule: stored.programRule,
+    ruleApplied: stored.ruleApplied,
+    rulePreview: null,
     soundEnabled: stored.soundEnabled,
     view: "main",
     race: makeRace(),
@@ -192,8 +244,10 @@
   function persist() {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify({
-        version: 1,
+        version: 2,
         program: state.program,
+        programRule: state.programRule,
+        ruleApplied: state.ruleApplied,
         soundEnabled: state.soundEnabled,
       }));
       return true;
@@ -240,6 +294,35 @@
       return { error: "La durée doit être comprise entre 00:01 et 1440:00." };
     }
     return { value: total };
+  }
+
+  function programRuleSentence(rule) {
+    const decrement = formatTime(rule.decrementSeconds);
+    return rule.loopsPerStep === 1
+      ? `Retirer ${decrement} à chaque boucle.`
+      : `Retirer ${decrement} toutes les ${rule.loopsPerStep} boucles.`;
+  }
+
+  function programRulesAreEqual(first, second) {
+    return first.decrementSeconds === second.decrementSeconds && first.loopsPerStep === second.loopsPerStep;
+  }
+
+  function readProgramRuleInputs() {
+    const parsedDecrement = parseDuration(els.ruleDecrementInput.value);
+    if (parsedDecrement.error) return { error: `Temps retiré : ${parsedDecrement.error}` };
+    const rawLoops = String(els.ruleLoopsInput.value).trim();
+    const loopsPerStep = Number(rawLoops);
+    if (!/^\d+$/.test(rawLoops) || !Number.isSafeInteger(loopsPerStep) || loopsPerStep < 1) {
+      return { error: "Le nombre de boucles par palier doit être un entier supérieur ou égal à 1." };
+    }
+    return { rule: { decrementSeconds: parsedDecrement.value, loopsPerStep } };
+  }
+
+  function resetProgramRuleEditor() {
+    state.rulePreview = null;
+    els.ruleDecrementInput.value = formatTime(state.programRule.decrementSeconds);
+    els.ruleLoopsInput.value = String(state.programRule.loopsPerStep);
+    els.ruleError.hidden = true;
   }
 
   function raceIsActive() {
@@ -379,8 +462,13 @@
     state.view = view;
     els.mainScreen.hidden = view !== "main";
     els.configScreen.hidden = view !== "config";
-    if (view === "config") renderConfig();
-    else renderMain(true);
+    if (view === "config") {
+      resetProgramRuleEditor();
+      renderConfig();
+    } else {
+      state.rulePreview = null;
+      renderMain(true);
+    }
   }
 
   function renderLoopCounter(current, total, isFinished = false) {
@@ -474,6 +562,53 @@
     els.timelineBody.append(fragment);
   }
 
+  function renderProgramRuleEditor(active, finished) {
+    const locked = active || finished;
+    const preview = state.rulePreview;
+    const parsedInputs = readProgramRuleInputs();
+    const inputRule = parsedInputs.rule;
+
+    els.ruleDecrementInput.disabled = locked;
+    els.ruleLoopsInput.disabled = locked;
+    els.previewRule.disabled = locked;
+    els.cancelRule.hidden = !preview;
+    els.applyRule.hidden = !preview;
+
+    if (locked) {
+      els.programRuleStatus.textContent = "RÈGLE VERROUILLÉE";
+      els.programRuleStatus.className = "rule-status locked";
+      els.ruleSummary.textContent = `La règle globale est disponible avant le départ, après un Reset. ${programRuleSentence(state.programRule)}`;
+      return;
+    }
+
+    if (preview) {
+      const plural = preview.changedCount === 1 ? "" : "s";
+      const changedLabel = `${preview.changedCount} boucle${plural} modifiée${plural}`;
+      els.programRuleStatus.textContent = "PRÉVISUALISATION";
+      els.programRuleStatus.className = "rule-status preview";
+      els.ruleSummary.textContent = `${programRuleSentence(preview.rule)} ${changedLabel} sur ${state.program.length}.`;
+      return;
+    }
+
+    if (state.ruleApplied) {
+      els.programRuleStatus.textContent = "RÈGLE ACTIVE";
+      els.programRuleStatus.className = "rule-status";
+    } else {
+      els.programRuleStatus.textContent = "PROGRAMME PERSONNALISÉ";
+      els.programRuleStatus.className = "rule-status custom";
+    }
+
+    if (!inputRule) {
+      els.ruleSummary.textContent = "Renseignez un temps retiré et un nombre entier de boucles, puis lancez la prévisualisation.";
+    } else if (!programRulesAreEqual(inputRule, state.programRule)) {
+      els.ruleSummary.textContent = `Réglage à prévisualiser : ${programRuleSentence(inputRule)} La boucle 1 reste à ${formatTime(state.program[0].duration)}.`;
+    } else if (state.ruleApplied) {
+      els.ruleSummary.textContent = `Règle active : ${programRuleSentence(state.programRule)} La boucle 1 dure ${formatTime(state.program[0].duration)}.`;
+    } else {
+      els.ruleSummary.textContent = `Règle enregistrée : ${programRuleSentence(state.programRule)} Le programme contient des ajustements manuels.`;
+    }
+  }
+
   function renderConfig() {
     const race = state.race;
     const active = raceIsActive();
@@ -488,22 +623,32 @@
         ? "La course est terminée. Utilisez Reset pour démarrer une nouvelle course avec ce programme."
         : "Les durées sont exprimées en minutes et secondes.";
 
+    renderProgramRuleEditor(active, finished);
+
     els.programBody.replaceChildren();
     const fragment = document.createDocumentFragment();
+    const displayedProgram = state.rulePreview ? state.rulePreview.program : state.program;
     let cumulativeDuration = 0;
-    state.program.forEach((entry, index) => {
+    displayedProgram.forEach((entry, index) => {
       cumulativeDuration += entry.duration;
       const row = document.createElement("tr");
       const locked = (active || finished) && (finished || index < race.currentIndex);
-      const action = locked
-        ? '<span class="unavailable">Boucle terminée</span>'
-        : `<button class="button" type="button" data-action="edit-loop" data-index="${index}">Modifier</button>`;
+      const isPreviewChange = Boolean(state.rulePreview) && entry.duration !== state.program[index].duration;
+      if (isPreviewChange) row.classList.add("row-rule-preview");
+      const action = state.rulePreview
+        ? `<span class="${isPreviewChange ? "preview-state" : "unavailable"}">${isPreviewChange ? "Nouvelle durée" : "Inchangée"}</span>`
+        : locked
+          ? '<span class="unavailable">Boucle terminée</span>'
+          : `<button class="button" type="button" data-action="edit-loop" data-index="${index}">Modifier</button>`;
       row.innerHTML = `<td>${entry.loop}</td><td>${formatTime(entry.duration)}</td><td>${formatTime(cumulativeDuration)}</td><td>${action}</td>`;
       fragment.append(row);
     });
     els.programBody.append(fragment);
     const lastIndex = state.program.length - 1;
-    els.removeLoop.disabled = state.program.length <= 1 || ((active || finished) && lastIndex <= race.currentIndex);
+    const previewActive = Boolean(state.rulePreview);
+    els.addLoop.disabled = previewActive;
+    els.removeLoop.disabled = previewActive || state.program.length <= 1 || ((active || finished) && lastIndex <= race.currentIndex);
+    els.saveProgram.disabled = previewActive;
   }
 
   function renderAll() {
@@ -605,13 +750,83 @@
     showToast("Course réinitialisée.");
   }
 
+  function previewProgramRule() {
+    if (raceIsActive() || state.race.phase === "finished") {
+      showToast("La règle globale est disponible avant le départ, après un Reset.");
+      return;
+    }
+    const parsed = readProgramRuleInputs();
+    if (parsed.error) {
+      els.ruleError.textContent = parsed.error;
+      els.ruleError.hidden = false;
+      state.rulePreview = null;
+      renderConfig();
+      return;
+    }
+    const generated = createProgramFromRule(state.program[0].duration, state.program.length, parsed.rule);
+    if (!generated.program) {
+      els.ruleError.textContent = `Cette règle rendrait la durée de la boucle ${generated.invalidIndex + 1} nulle ou négative. Réduisez le temps retiré ou augmentez le nombre de boucles par palier.`;
+      els.ruleError.hidden = false;
+      state.rulePreview = null;
+      renderConfig();
+      return;
+    }
+    const changedCount = generated.program.reduce((total, entry, index) => (
+      total + (entry.duration === state.program[index].duration ? 0 : 1)
+    ), 0);
+    state.rulePreview = { rule: parsed.rule, program: generated.program, changedCount };
+    els.ruleError.hidden = true;
+    renderConfig();
+  }
+
+  function cancelProgramRulePreview() {
+    resetProgramRuleEditor();
+    renderConfig();
+  }
+
+  function applyProgramRule() {
+    const preview = state.rulePreview;
+    if (!preview) return;
+    state.program = preview.program.map((entry) => ({ ...entry }));
+    state.programRule = { ...preview.rule };
+    state.ruleApplied = true;
+    state.rulePreview = null;
+    persist();
+    resetProgramRuleEditor();
+    renderAll();
+    showToast(`Règle appliquée : ${programRuleSentence(state.programRule)}`);
+  }
+
+  function requestProgramRuleApplication() {
+    if (!state.rulePreview) return;
+    if (!state.ruleApplied) {
+      askConfirmation(
+        "Remplacer les ajustements manuels ?",
+        "L’application de cette règle va régénérer toutes les durées depuis la boucle 1 et remplacer les modifications manuelles actuelles.",
+        "Appliquer la règle",
+        applyProgramRule,
+        "primary"
+      );
+      return;
+    }
+    applyProgramRule();
+  }
+
   function addLoop() {
     const last = state.program[state.program.length - 1];
-    state.program.push({ loop: state.program.length + 1, duration: last.duration });
+    const index = state.program.length;
+    const duration = state.ruleApplied
+      ? durationFromRule(state.program[0].duration, index, state.programRule)
+      : last.duration;
+    if (duration <= 0) {
+      showToast("Impossible d’ajouter cette boucle : la règle active produirait une durée nulle ou négative.");
+      return;
+    }
+    state.program.push({ loop: index + 1, duration });
     if (raceIsActive()) rebuildFutureTimeline();
     persist();
     renderAll();
-    showToast(`Boucle ${state.program.length} ajoutée avec une durée de ${formatTime(last.duration)}.`);
+    showToast(`Boucle ${state.program.length} ajoutée avec une durée de ${formatTime(duration)}.`);
   }
 
   function removeLastLoop() {
@@ -709,6 +924,7 @@
       loop: entryIndex + 1,
       duration: entryIndex >= index ? entry.duration + delta : entry.duration,
     }));
+    state.ruleApplied = programFollowsRule(state.program, state.programRule);
     persist();
     closeEdit();
     if (raceIsActive()) {
@@ -793,6 +1009,9 @@
       case "fullscreen": toggleFullscreen(); break;
       case "test-sound": testSound(); break;
       case "toggle-sound": toggleSound(); break;
+      case "preview-rule": previewProgramRule(); break;
+      case "cancel-rule": cancelProgramRulePreview(); break;
+      case "apply-rule": requestProgramRuleApplication(); break;
       case "add-loop": addLoop(); break;
       case "remove-loop": removeLastLoop(); break;
       case "save-program":
@@ -822,6 +1041,17 @@
 
   els.durationInput.addEventListener("keydown", (event) => {
     if (event.key === "Enter") previewChange();
+  });
+
+  [els.ruleDecrementInput, els.ruleLoopsInput].forEach((input) => {
+    input.addEventListener("input", () => {
+      state.rulePreview = null;
+      els.ruleError.hidden = true;
+      renderConfig();
+    });
+    input.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") previewProgramRule();
+    });
   });
 
   document.addEventListener("keydown", (event) => {

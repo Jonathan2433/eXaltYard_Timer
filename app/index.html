@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#0b1220" />
     <title>eXaltYard Timer</title>
-    <link rel="stylesheet" href="style.css?v=20261012-cumulative-times" />
+    <link rel="stylesheet" href="style.css?v=20261012-program-rules" />
   </head>
   <body>
     <main class="app-shell">
@@ -86,6 +86,35 @@
         </header>
 
         <p id="config-message" class="config-message">Les durées sont exprimées en minutes et secondes.</p>
+        <section class="program-rule-panel" aria-labelledby="program-rule-title">
+          <div class="program-rule-heading">
+            <div>
+              <p class="eyebrow">GÉNÉRATION DU PROGRAMME</p>
+              <h2 id="program-rule-title">Règle de diminution</h2>
+            </div>
+            <span id="program-rule-status" class="rule-status">RÈGLE ACTIVE</span>
+          </div>
+          <p class="program-rule-description">La durée de la boucle 1 sert de référence. Prévisualisez la règle avant de l’appliquer au programme.</p>
+          <div class="program-rule-fields">
+            <label class="rule-field" for="rule-decrement-input">
+              <span>Temps retiré par palier</span>
+              <input id="rule-decrement-input" class="rule-input" inputmode="numeric" autocomplete="off" placeholder="00:30" maxlength="7" value="00:30" />
+            </label>
+            <label class="rule-field" for="rule-loops-input">
+              <span>Nombre de boucles par palier</span>
+              <input id="rule-loops-input" class="rule-input" type="number" inputmode="numeric" min="1" step="1" value="2" />
+            </label>
+          </div>
+          <p id="program-rule-error" class="form-error" role="alert" hidden></p>
+          <div class="program-rule-footer">
+            <p id="program-rule-summary" class="program-rule-summary" aria-live="polite">Retirer 00:30 toutes les 2 boucles.</p>
+            <div class="program-rule-actions">
+              <button id="cancel-rule-button" class="button button-quiet" type="button" data-action="cancel-rule" hidden>Annuler la prévisualisation</button>
+              <button id="preview-rule-button" class="button" type="button" data-action="preview-rule">Prévisualiser</button>
+              <button id="apply-rule-button" class="button button-primary" type="button" data-action="apply-rule" hidden>Appliquer la règle</button>
+            </div>
+          </div>
+        </section>
         <div class="table-wrap config-table-wrap">
           <table class="program-table">
             <thead><tr><th>Boucle</th><th>Temps maximum</th><th>Temps cumulé</th><th>Action</th></tr></thead>
@@ -93,9 +122,9 @@
           </table>
         </div>
         <div class="config-actions">
-          <button class="button" type="button" data-action="add-loop">+ Ajouter une boucle</button>
+          <button id="add-loop-button" class="button" type="button" data-action="add-loop">+ Ajouter une boucle</button>
           <button id="remove-loop-button" class="button button-danger-quiet" type="button" data-action="remove-loop">Supprimer la dernière boucle</button>
-          <button class="button button-primary" type="button" data-action="save-program">Enregistrer le programme</button>
+          <button id="save-program-button" class="button button-primary" type="button" data-action="save-program">Enregistrer le programme</button>
           <button class="button button-quiet" type="button" data-action="back-main">Retour à l’écran principal</button>
         </div>
       </section>
@@ -136,6 +165,6 @@
     </div>
 
     <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
-    <script src="app.js?v=20261012-cumulative-times"></script>
+    <script src="app.js?v=20261012-program-rules"></script>
   </body>
 </html>
