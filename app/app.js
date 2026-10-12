@@ -21,6 +21,7 @@
     timerCaption: document.querySelector("#timer-caption"),
     currentLimit: document.querySelector("#current-limit"),
     nextLimit: document.querySelector("#next-limit"),
+    currentCumulative: document.querySelector("#current-cumulative"),
     completedSummary: document.querySelector("#completed-summary"),
     announcement: document.querySelector("#announcement"),
     start: document.querySelector("#start-button"),
@@ -212,6 +213,14 @@
   function formatDelta(seconds) {
     const sign = seconds >= 0 ? "+" : "−";
     return `${sign}${formatTime(Math.abs(seconds))}`;
+  }
+
+  function cumulativeDurationAt(index) {
+    let total = 0;
+    for (let i = 0; i <= index && i < state.program.length; i += 1) {
+      total += state.program[i].duration;
+    }
+    return total;
   }
 
   function formatClock(timestamp) {
@@ -414,6 +423,7 @@
       els.timerCaption.textContent = "CHRONOMÉTRAGE FINALISÉ";
       els.currentLimit.textContent = "—";
       els.nextLimit.textContent = "—";
+      els.currentCumulative.textContent = formatTime(cumulativeDurationAt(state.program.length - 1));
       els.completedSummary.hidden = false;
       els.completedSummary.textContent = `${state.program.length} / ${state.program.length} BOUCLES TERMINÉES`;
     } else {
@@ -422,6 +432,7 @@
       els.timerCaption.textContent = race.phase === "paused" ? "TEMPS FIGÉ — COURSE EN PAUSE" : "TEMPS RESTANT";
       els.currentLimit.textContent = formatTime(currentProgram.duration);
       els.nextLimit.textContent = index < state.program.length - 1 ? formatTime(state.program[index + 1].duration) : "DERNIÈRE BOUCLE";
+      els.currentCumulative.textContent = formatTime(cumulativeDurationAt(index));
       els.completedSummary.hidden = true;
     }
 
@@ -479,13 +490,15 @@
 
     els.programBody.replaceChildren();
     const fragment = document.createDocumentFragment();
+    let cumulativeDuration = 0;
     state.program.forEach((entry, index) => {
+      cumulativeDuration += entry.duration;
       const row = document.createElement("tr");
       const locked = (active || finished) && (finished || index < race.currentIndex);
       const action = locked
         ? '<span class="unavailable">Boucle terminée</span>'
         : `<button class="button" type="button" data-action="edit-loop" data-index="${index}">Modifier</button>`;
-      row.innerHTML = `<td>${entry.loop}</td><td>${formatTime(entry.duration)}</td><td>${action}</td>`;
+      row.innerHTML = `<td>${entry.loop}</td><td>${formatTime(entry.duration)}</td><td>${formatTime(cumulativeDuration)}</td><td>${action}</td>`;
       fragment.append(row);
     });
     els.programBody.append(fragment);

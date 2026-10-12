@@ -29,10 +29,10 @@ docker compose logs -f
 
 1. Ouvrir **Configuration**, vérifier les durées, puis enregistrer le programme.
 2. Utiliser **Tester le son** (et vérifier la sortie Bluetooth ou filaire) avant le départ.
-3. Activer le plein écran si nécessaire : seul le panneau de course est alors affiché (boucle, chronomètre, temps limite et prochaine boucle).
+3. Activer le plein écran si nécessaire : seul le panneau de course est alors affiché (boucle, chronomètre, temps limite, prochaine boucle et temps cumulé).
 4. Cliquer sur **Démarrer la course**. Les boucles s’enchaînent automatiquement.
 
-La configuration accepte les durées `MM:SS`. Modifier une durée montre d’abord une prévisualisation : l’écart est appliqué à la boucle choisie et à toutes les suivantes. Une boucle ajoutée reprend la dernière durée ; seule la dernière boucle est supprimable.
+La configuration accepte les durées `MM:SS`. Pour chaque boucle, elle affiche aussi le temps cumulé depuis la première boucle. Modifier une durée montre d’abord une prévisualisation : l’écart est appliqué à la boucle choisie et à toutes les suivantes. Une boucle ajoutée reprend la dernière durée ; seule la dernière boucle est supprimable.
 
 Pendant la course, les boucles terminées sont verrouillées. La boucle actuelle demande une confirmation spécifique. Une modification future recalcule immédiatement la timeline affichée ; une modification de la boucle actuelle préserve le temps actif déjà écoulé. Si sa nouvelle limite est déjà atteinte, le passage à la boucle suivante se fait proprement.
 
@@ -48,7 +48,7 @@ Une pause mémorise exactement le temps actif déjà consommé. À la reprise, s
 
 L'écran principal reprend les codes de la course eXaltYard : bleu nuit, rose fuchsia, jaune vif et détails graphiques dynamiques. La boucle en cours et le total de boucles forment un compteur distinct, volontairement plus visible que les informations secondaires.
 
-Le plein écran cible uniquement le panneau de course et masque donc l'en-tête, les commandes, les messages et la timeline. Les raccourcis restent utilisables : `F` bascule ce mode et `Échap` le ferme.
+Le panneau de course affiche le temps cumulé théorique jusqu'à la boucle courante, sans intégrer les pauses. Le plein écran cible uniquement ce panneau et masque donc l'en-tête, les commandes, les messages et la timeline. Les raccourcis restent utilisables : `F` bascule ce mode et `Échap` le ferme.
 
 ## Son
 

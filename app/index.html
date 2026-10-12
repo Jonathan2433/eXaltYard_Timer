@@ -37,6 +37,10 @@
               <span>PROCHAINE BOUCLE</span>
               <strong id="next-limit">10:00</strong>
             </div>
+            <div class="time-detail time-detail-cumulative">
+              <span>TEMPS CUMULÉ</span>
+              <strong id="current-cumulative">10:00</strong>
+            </div>
           </div>
           <p id="completed-summary" class="completed-summary" hidden></p>
         </div>
@@ -84,7 +88,7 @@
         <p id="config-message" class="config-message">Les durées sont exprimées en minutes et secondes.</p>
         <div class="table-wrap config-table-wrap">
           <table class="program-table">
-            <thead><tr><th>Boucle</th><th>Temps maximum</th><th>Action</th></tr></thead>
+            <thead><tr><th>Boucle</th><th>Temps maximum</th><th>Temps cumulé</th><th>Action</th></tr></thead>
             <tbody id="program-body"></tbody>
           </table>
         </div>
