@@ -7,6 +7,7 @@ Les vérifications suivantes ne demandent aucun framework et peuvent être réal
 | Ajout | Configuration → ajouter une boucle | Une nouvelle dernière ligne reprend la durée précédente et le total change partout. |
 | Suppression | Supprimer la dernière boucle | Seulement la dernière ligne disparaît ; une boucle minimale reste toujours. |
 | Temps cumulés | Configurer trois boucles de 10:00, 10:00 et 09:30 | La colonne « Temps cumulé » affiche respectivement 10:00, 20:00 et 29:30. |
+| Chargement des cumuls | Recharger normalement la page après déploiement, puis ouvrir Configuration | Chaque ligne conserve quatre cellules alignées et affiche son temps cumulé ; « Modifier » reste dans la colonne « Action ». |
 | Décalage négatif | Modifier 09:30 en 09:00, prévisualiser puis appliquer | La ligne et toutes les suivantes perdent 00:30 ; les précédentes restent identiques. |
 | Décalage positif | Modifier une durée en l’augmentant | La durée et toutes les suivantes gagnent le même écart. |
 | Annulation | Prévisualiser puis Annuler | Aucune durée ne change. |
